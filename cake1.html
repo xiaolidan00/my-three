@@ -184,8 +184,9 @@
                 textMesh.position.y = maxHeight + baseHeight;
                 // //x,y轴位置
                 let r = startRadius + angel * 0.5 + Math.PI * 0.5;
-                textMesh.position.x = -Math.cos(r) * outerRadius;
-                textMesh.position.z = Math.sin(r) * outerRadius;
+                let rr = innerRadius + 0.5 * ra;
+                textMesh.position.x = -Math.cos(r) * rr;
+                textMesh.position.z = Math.sin(r) * rr;
                 if (this.that.isAnimate) {
                   if (idx == 0) {
                     textMesh.visible = true;

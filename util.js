@@ -134,7 +134,37 @@ export function getColor(color) {
   return { red, green, blue, result, alpha: alpha >= 0 && alpha <= 100 ? alpha : 100 };
 }
 /**
- * 获取阴影颜色
+ * 获取亮色向渐变颜色
+ * @param {string} color 基础颜色
+ * @param {number} step  数量
+ * @returns {array} list 颜色数组
+ */
+export function getLightColor() {
+  let c = getColor(color);
+  let { red, blue, green } = c;
+  console.log('%ccolor', `background:${color}`);
+
+  const l = 0.2;
+  const r = red + parseInt((255 - red) * l),
+    g = green + parseInt((255 - green) * l),
+    b = blue + parseInt((255 - blue) * l);
+  console.log('%clight', `background:rgb(${r},${g}, ${b})`);
+
+  const rr = (r - red) / step,
+    gg = (g - green) / step,
+    bb = (b - blue) / step;
+
+  let list = [];
+  for (let i = 0; i < step; i++) {
+    list.push(
+      `rgb(${parseInt(red + i * rr)},${parseInt(green + i * gg)},${parseInt(blue + i * bb)})`
+    );
+  }
+  return list;
+}
+
+/**
+ * 获取暗色向渐变颜色
  * @param {string} color 基础颜色
  * @param {number} step  数量
  * @returns {array} list 颜色数组
