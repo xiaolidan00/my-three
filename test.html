@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+  <body>
+    <canvas id="myCanvas" width="300" height="150" style="border: 1px solid #d3d3d3">
+      Your browser does not support the HTML5 canvas tag.
+    </canvas>
+
+    <script>
+      let fontColor = 'black';
+      let textList = [
+        { text: '大小', color: fontColor },
+        { text: 12121, color: fontColor }
+      ];
+      function getCanvasTextArray(textList, fontSize) {
+        const canvas = document.getElementById('myCanvas');
+
+        const ctx = canvas.getContext('2d');
+        ctx.font = fontSize + 'px Arial';
+        let textLen = 0;
+        textList.forEach((item) => {
+          let w = ctx.measureText(item.text + '').width;
+          if (w > textLen) {
+            textLen = w;
+          }
+        });
+        canvas.width = textLen;
+        canvas.height = fontSize * 1.2 * textList.length;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.font = fontSize + 'px Arial';
+        textList.forEach((item, idx) => {
+          ctx.fillStyle = item.color;
+          ctx.fillText(item.text, 0, fontSize * 1.2 * idx + fontSize);
+        });
+
+        return canvas;
+      }
+      getCanvasTextArray(textList, 100);
+    </script>
+  </body>
+</html>
