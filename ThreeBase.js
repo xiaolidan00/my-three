@@ -11,44 +11,42 @@ export default class ThreeBase {
   }
   initRaycaster() {
     this.raycaster = new THREE.Raycaster();
+    this.mouseHover();
+    this.mouseClick();
+  }
+  mouseClick() {
     this.mouse = new THREE.Vector2();
     this.container.style.cursor = 'pointer';
-    this.container.addEventListener(
-      'pointerdown',
-      (event) => {
-        event.preventDefault();
+    this.container.addEventListener('pointerdown', (event) => {
+      console.log('click');
+      event.preventDefault();
 
-        this.mouse.x =
-          ((event.offsetX - this.container.offsetLeft) / this.container.offsetWidth) * 2 - 1;
-        this.mouse.y =
-          -((event.offsetY - this.container.offsetTop) / this.container.offsetHeight) * 2 + 1;
-        let vector = new THREE.Vector3(this.mouse.x, this.mouse.y, 1).unproject(this.camera);
+      this.mouse.x =
+        ((event.offsetX - this.container.offsetLeft) / this.container.offsetWidth) * 2 - 1;
+      this.mouse.y =
+        -((event.offsetY - this.container.offsetTop) / this.container.offsetHeight) * 2 + 1;
+      let vector = new THREE.Vector3(this.mouse.x, this.mouse.y, 1).unproject(this.camera);
 
-        this.raycaster.set(this.camera.position, vector.sub(this.camera.position).normalize());
-        this.raycaster.setFromCamera(this.mouse, this.camera);
-        this.raycasterAction();
-      },
-      false
-    );
-
+      this.raycaster.set(this.camera.position, vector.sub(this.camera.position).normalize());
+      this.raycaster.setFromCamera(this.mouse, this.camera);
+      this.raycasterAction();
+    });
+  }
+  mouseHover() {
     this.mouse1 = new THREE.Vector2();
-    this.container.addEventListener(
-      'pointermove',
-      (event) => {
-        event.preventDefault();
+    this.container.addEventListener('pointermove', (event) => {
+      event.preventDefault();
 
-        this.mouse1.x =
-          ((event.offsetX - this.container.offsetLeft) / this.container.offsetWidth) * 2 - 1;
-        this.mouse1.y =
-          -((event.offsetY - this.container.offsetTop) / this.container.offsetHeight) * 2 + 1;
-        let vector = new THREE.Vector3(this.mouse1.x, this.mouse1.y, 1).unproject(this.camera);
+      this.mouse1.x =
+        ((event.offsetX - this.container.offsetLeft) / this.container.offsetWidth) * 2 - 1;
+      this.mouse1.y =
+        -((event.offsetY - this.container.offsetTop) / this.container.offsetHeight) * 2 + 1;
+      let vector = new THREE.Vector3(this.mouse1.x, this.mouse1.y, 1).unproject(this.camera);
 
-        this.raycaster.set(this.camera.position, vector.sub(this.camera.position).normalize());
-        this.raycaster.setFromCamera(this.mouse1, this.camera);
-        this.mouseHoverAction();
-      },
-      false
-    );
+      this.raycaster.set(this.camera.position, vector.sub(this.camera.position).normalize());
+      this.raycaster.setFromCamera(this.mouse1, this.camera);
+      this.mouseHoverAction();
+    });
   }
   mouseHoverAction() {}
   raycasterAction() {}
@@ -63,8 +61,8 @@ export default class ThreeBase {
     THREE.Cache.enabled = true;
     this.renderer = new THREE.WebGLRenderer({
       antialias: true,
-      alpha: true,
-      logarithmicDepthBuffer: true
+      alpha: true
+      // logarithmicDepthBuffer: true
     });
     this.renderer.setClearColor(0x000000, 0);
     this.renderer.setPixelRatio(window.devicePixelRatio);
@@ -128,6 +126,15 @@ export default class ThreeBase {
     if (idx + 1 < obj.children.length) {
       this.cleanNext(obj, idx + 1);
     }
+  }
+
+  setView(cameraPos, controlPos) {
+    this.camera.position.set(cameraPos.x, cameraPos.y, cameraPos.z);
+    this.controls.target.set(controlPos.x, controlPos.y, controlPos.z);
+  }
+  getView() {
+    console.log('camera', this.camera.position);
+    console.log('controls', this.controls.target);
   }
 
   cleanElmt(obj) {

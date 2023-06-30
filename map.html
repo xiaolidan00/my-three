@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+    <style>
+      #map {
+        height: 800px;
+        width: 800px;
+        background-color: black;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="nav"></div>
+    <div id="map"></div>
+    <script type="module">
+      import * as THREE from './node_modules/three/build/three.module.js';
+      import ThreeBase from './ThreeBase.js';
+      import mapOption from './mapOption.js';
+      import {
+        getGadientArray,
+        getColor,
+        getRgbColor,
+        getTextSprite,
+        getBasicMaterial
+      } from './util.js';
+      import { getLineShaderMaterial, getGradientShaderMaterial } from './shaderUtil.js';
+      import { queryGeojson, getGeoInfo, latlng2px } from './geoUtil.js';
+      import { GeometryUtils } from './node_modules/three/examples/jsm/utils/GeometryUtils.js';
+
+      class RegionMap extends ThreeBase {
+        constructor() {
+          super();
+          this.latlngScale = 10;
+          this.objGroup = null;
+          this.isAxis = false;
+          this.isRaycaster = true;
+          this.isStats = false;
+          this.colorNum = 5;
+
+          this.bounding = {
+            minlat: Number.MAX_VALUE,
+            minlng: Number.MAX_VALUE,
+            maxlng: 0,
+            maxlat: 0
+          };
+
+          this.circleScale = 1;
+          this.lineTime = 0;
+          this.sizeScale = 1;
+        }
+        animateAction() {
+          let options = this.that;
+          //是否自动旋转
+          if (options?.viewControl?.autoRotate) {
+            if (this.containerGroup.rotation.y >= Math.PI * 2) {
+              this.containerGroup.rotation.y = 0;
+            } else {
+              this.containerGroup.rotation.y += (Math.PI * 2) / options.viewControl.rotateSpeed;
+            }
+          }
+
+          //散点波纹扩散
+          if (this.circleGroup?.children?.length > 0) {
+            this.circleGroup.children.forEach((elmt) => {
+              if (elmt.material.opacity <= 0) {
+                elmt.material.opacity = 1;
+                this.circleScale = 1;
+              } else {
+                //大小变大，透明度减小
+                elmt.material.opacity += -0.01;
+                this.circleScale += 0.0002;
+              }
+              elmt.scale.x = this.circleScale;
+              elmt.scale.y = this.circleScale;
+            });
+          }
+          //飞线颜色变化
+          if (this.linesGroup?.children?.length > 0) {
+            if (this.lineTime >= 1.0) {
+              this.lineTime = 0.0;
+            } else {
+              this.lineTime += 0.005;
+            }
+            this.linesMaterial.forEach((m) => {
+              m.uniforms.time.value = this.lineTime;
+            });
+          }
+        }
+        clean() {
+          this.actionElmts = [];
+          this.linesMaterial = [];
+          if (this.tooltip) {
+            this.cleanObj(this.tooltip);
+          }
+          this.activeObj = null;
+          if (this.objGroup) {
+            this.cleanObj(this.objGroup);
+            this.objGroup = null;
+          }
+        }
+        createBar(op, idx) {
+          const material = getGradientShaderMaterial(
+            THREE,
+            op.itemStyle.topColor,
+            op.itemStyle.bottomColor
+          );
+
+          let min = op.data[0].value,
+            max = op.data[0].value;
+          op.data.forEach((item) => {
+            if (item.value < min) {
+              min = item.value;
+            }
+            if (item.value > max) {
+              max = item.value;
+            }
+          });
+
+          let len = max - min;
+          for (let index = 0; index < op.data.length; index++) {
+            let item = op.data[index];
+
+            let pos = latlng2px([item.lng, item.lat]);
+
+            //柱体范围过滤
+            if (this.checkBounding(pos)) {
+              //柱体高度
+              let h =
+                (((item.value - min) / len) * op.itemStyle.maxHeight + op.itemStyle.minHeight) *
+                this.sizeScale;
+
+              let bar = new THREE.BoxGeometry(
+                op.itemStyle.barWidth * this.sizeScale,
+                h,
+                op.itemStyle.barWidth * this.sizeScale
+              );
+
+              let barMesh = new THREE.Mesh(bar, material);
+              barMesh.name = 'bar-' + idx + '-' + index;
+
+              barMesh.position.set(pos[0], 0.5 * h, pos[1]);
+              this.barGroup.add(barMesh);
+            }
+          }
+        }
+
+        getCircleMaterial(radius, color) {
+          const canvas = document.createElement('canvas');
+          canvas.height = radius * 3.1;
+          canvas.width = radius * 3.1;
+          const ctx = canvas.getContext('2d');
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.strokeStyle = color;
+          // ctx.shadowBlur = radius * 0.1;
+          // ctx.shadowColor = color;
+
+          //画三个波纹圈
+          //外圈
+          ctx.lineWidth = radius * 0.2;
+          ctx.beginPath();
+          ctx.arc(canvas.width * 0.5, canvas.height * 0.5, radius, 0, 2 * Math.PI);
+          ctx.closePath();
+          ctx.stroke();
+          //中圈
+          ctx.lineWidth = radius * 0.1;
+          ctx.beginPath();
+          ctx.arc(canvas.width * 0.5, canvas.height * 0.5, radius * 1.3, 0, 2 * Math.PI);
+          ctx.closePath();
+          ctx.stroke();
+          //内圈
+          ctx.lineWidth = radius * 0.05;
+          ctx.beginPath();
+          ctx.arc(canvas.width * 0.5, canvas.height * 0.5, radius * 1.5, 0, 2 * Math.PI);
+          ctx.closePath();
+          ctx.stroke();
+
+          const map = new THREE.CanvasTexture(canvas);
+          map.wrapS = THREE.RepeatWrapping;
+          map.wrapT = THREE.RepeatWrapping;
+          let res = getColor(color);
+          const material = new THREE.MeshBasicMaterial({
+            map: map,
+            transparent: true,
+            color: new THREE.Color(`rgb(${res.red},${res.green},${res.blue})`),
+            opacity: 1,
+            // depthTest: false,
+            side: THREE.DoubleSide
+          });
+
+          return { material, canvas };
+        }
+        createScatter(op, idx) {
+          let min = op.data[0].value,
+            max = op.data[0].value;
+          op.data.forEach((item) => {
+            if (item.value < min) {
+              min = item.value;
+            }
+            if (item.value > max) {
+              max = item.value;
+            }
+          });
+
+          let len = max - min;
+          let unit = len / this.colorNum;
+
+          let size = op.itemStyle.maxRadius - op.itemStyle.minRadius || 1;
+          //热力颜色列表
+          let colorList = getGadientArray(
+            op.itemStyle.colorList[0],
+            op.itemStyle.colorList[1],
+            this.colorNum
+          );
+          for (let index = 0; index < op.data.length; index++) {
+            let item = op.data[index];
+            let pos = latlng2px([item.lng, item.lat]);
+            //检查散点是否在范围内
+            if (this.checkBounding(pos)) {
+              //获取热力颜色
+              let cIdx = Math.floor((item.value - min) / unit);
+              cIdx = cIdx >= this.colorNum ? this.colorNum - 1 : cIdx;
+              let color = colorList[cIdx];
+              let c = getColor(color);
+
+              const material = getBasicMaterial(
+                THREE,
+                `rgba(${c.red},${c.green},${c.blue},${op.itemStyle.opacity})`
+              );
+              //获取散点大小
+              let r;
+              if (len == 0) {
+                r = op.itemStyle.minRadius * this.sizeScale;
+              } else {
+                r = ((item.value - min) / len) * size + op.itemStyle.minRadius;
+                r = r * this.sizeScale;
+              }
+              //散点
+              let geometry = new THREE.CircleGeometry(r, 32);
+
+              let mesh = new THREE.Mesh(geometry, material);
+              mesh.name = 'scatter-' + idx + '-' + index;
+
+              mesh.rotateX(0.5 * Math.PI);
+              mesh.position.set(pos[0], 0, pos[1]);
+              this.scatterGroup.add(mesh);
+              //波纹圈
+              if (op.itemStyle.isCircle) {
+                const { material: circleMaterial } = this.getCircleMaterial(
+                  op.itemStyle.maxRadius * 20,
+                  color
+                );
+
+                let circle = new THREE.Mesh(new THREE.CircleGeometry(r * 2, 32), circleMaterial);
+                circle.name = 'circle' + idx + '-' + index;
+                circle.rotateX(0.5 * Math.PI);
+                circle.position.set(pos[0], 0, pos[1]);
+
+                this.circleGroup.add(circle);
+              }
+            }
+          }
+          this.scatterGroup.position.y = 0.1 * this.sizeScale;
+          if (op.itemStyle.isCircle) {
+            this.circleGroup.position.y = 0.1 * this.sizeScale;
+          }
+        }
+
+        createLines(op, idx) {
+          const material = getLineShaderMaterial(THREE, op.itemStyle.color, op.itemStyle.runColor);
+          this.linesMaterial.push(material);
+          for (let index = 0; index < op.data.length; index++) {
+            let item = op.data[index];
+
+            let pos = latlng2px([item.fromlng, item.fromlat]);
+            let pos2 = latlng2px([item.tolng, item.tolat]);
+            //过滤飞线范围
+            if (this.checkBounding(pos) && this.checkBounding(pos2)) {
+              let pos1 = latlng2px([
+                (item.fromlng + item.tolng) / 2,
+                (item.fromlat + item.tolat) / 2
+              ]);
+              //贝塞尔曲线
+              const curve = new THREE.QuadraticBezierCurve3(
+                new THREE.Vector3(pos[0], 0, pos[1]),
+                new THREE.Vector3(pos1[0], op.itemStyle.lineHeight * this.sizeScale, pos1[1]),
+                new THREE.Vector3(pos2[0], 0, pos2[1])
+              );
+              const geometry = new THREE.TubeGeometry(
+                curve,
+                32,
+                op.itemStyle.lineWidth * this.sizeScale,
+                8,
+                false
+              );
+
+              const line = new THREE.Mesh(geometry, material);
+              line.name = 'lines-' + idx + '-' + index;
+              this.linesGroup.add(line);
+            }
+          }
+        }
+
+        mouseHoverAction() {
+          this.doMouseAction(false);
+        }
+        raycasterAction() {
+          console.log('click');
+          this.doMouseAction(true);
+        }
+        createToolTip(regionName, regionIdx, center, scale) {
+          let op = this.that;
+          if (!op.tooltip.show) {
+            return;
+          }
+          let text;
+          let data;
+          //文本格式化替换
+          if (regionIdx >= 0) {
+            data = op.data[regionIdx];
+            text = op.tooltip.formatter;
+          } else {
+            text = '{name}';
+          }
+
+          if (text.indexOf('{name}') >= 0) {
+            text = text.replace('{name}', regionName);
+          }
+          if (text.indexOf('{value}') >= 0) {
+            text = text.replace('{value}', data.value);
+          }
+          let { mesh, canvas } = getTextSprite(
+            THREE,
+            text,
+            op.tooltip.fontSize * this.sizeScale,
+            op.tooltip.color,
+            op.tooltip.bg
+          );
+          let s = this.latlngScale / this.sizeScale;
+          //注意canvas精灵的大小要保持比例
+          mesh.scale.set(canvas.width * 0.01 * s, canvas.height * 0.01 * s);
+          let box = new THREE.Box3().setFromObject(mesh);
+          this.tooltip = mesh;
+          this.tooltip.position.set(center.x, center.y + scale.y + box.getSize().y, center.z);
+          this.scene.add(mesh);
+        }
+        doMouseAction(isChange) {
+          const intersects = this.raycaster.intersectObjects(this.actionElmts, true);
+
+          let newActiveObj;
+          let options = this.that;
+          if (intersects.length > 0) {
+            newActiveObj = intersects[0].object;
+          }
+
+          if (
+            (this.activeObj && newActiveObj && this.activeObj.name != newActiveObj.name) ||
+            (!this.activeObj && newActiveObj)
+          ) {
+            console.log('active', newActiveObj);
+            //删除旧的提示文本
+            if (this.tooltip) {
+              this.cleanObj(this.tooltip);
+              this.tooltip = null;
+            }
+            //还原旧的区块材质
+            if (this.regions && this.beforeMaterial) {
+              this.regions.forEach((elmt) => {
+                elmt.material = this.beforeMaterial;
+              });
+            }
+            //存储旧的区块材质
+            this.beforeMaterial = newActiveObj.material;
+
+            let regions = this.actionElmts.filter((item) => item.name == newActiveObj.name);
+            let regionIdx = newActiveObj.regionIdx;
+            let idx = newActiveObj.idx;
+            let regionName = newActiveObj.name;
+            //将区块材质设置成激活状态材质
+            if (regions?.length) {
+              let center = new THREE.Vector3();
+
+              regions.forEach((elmt) => {
+                elmt.material = this.activeRegionMat;
+                elmt.updateMatrixWorld();
+                let box = new THREE.Box3().setFromObject(elmt);
+
+                let c = box.getCenter(new THREE.Vector3());
+                center.x += c.x;
+                center.y += c.y;
+                center.z += c.z;
+              });
+              //计算中心点，创建提示文本
+              center.x = center.x / regions.length;
+              center.y = center.y / regions.length;
+              center.z = center.z / regions.length;
+              newActiveObj.updateMatrixWorld();
+              let objBox = new THREE.Box3().setFromObject(newActiveObj);
+              this.createToolTip(regionName, regionIdx, center, objBox.getSize());
+            }
+            this.regions = regions;
+            this.activeObj = newActiveObj;
+          }
+          //点击下钻
+          if (isChange && newActiveObj && this.activeObj) {
+            let f = this.geoJson.features[this.activeObj.idx];
+            this.that.adcode = f.properties.adcode;
+            this.that.address = f.properties.name;
+            console.log('next region', this.that.adcode);
+            this.createChart(this.that);
+          }
+        }
+
+        checkBounding(pos) {
+          if (
+            pos[0] >= this.bounding.minlng &&
+            pos[0] <= this.bounding.maxlng &&
+            pos[1] >= this.bounding.minlat &&
+            pos[1] <= this.bounding.maxlat
+          ) {
+            return true;
+          }
+          return false;
+        }
+
+        createRegion({ c, extrudeSettings, lineM, regionName, regionColor, idx, regionIdx }) {
+          const shape = new THREE.Shape();
+          const points = [];
+
+          let pos0 = latlng2px(c[0]);
+          shape.moveTo(...pos0);
+          let h = 0;
+          points.push(new THREE.Vector3(...pos0, h));
+
+          for (let i = 1; i < c.length; i++) {
+            let p = latlng2px(c[i]);
+            shape.lineTo(...p);
+            points.push(new THREE.Vector3(...p, h));
+          }
+          shape.lineTo(...pos0);
+          //添加区块形状
+          const geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+          let material = getBasicMaterial(THREE, regionColor);
+          const mesh = new THREE.Mesh(geometry, material);
+          mesh.name = regionName;
+          mesh.regionIdx = regionIdx;
+          mesh.idx = idx;
+          mesh.rotateX(Math.PI * 0.5);
+          //收集动作元素
+          this.actionElmts.push(mesh);
+          //添加边框
+          const lineGeo = new THREE.BufferGeometry().setFromPoints(points);
+          const line = new THREE.Line(lineGeo, lineM);
+          line.name = 'regionline-' + idx;
+          line.rotateX(Math.PI * 0.5);
+          line.position.y = 0.03 * this.sizeScale;
+          let group = new THREE.Group();
+          group.name = 'region-' + idx;
+          group.add(mesh, line);
+          this.mapGroup.add(group);
+        }
+        loaderExturdeGeometry() {
+          let options = this.that;
+          let minValue;
+          let maxValue;
+          let valueLen;
+          if (options.data.length > 0) {
+            minValue = options.data[0].value;
+            maxValue = options.data[0].value;
+            options.data.forEach((item) => {
+              if (item.value < minValue) {
+                minValue = item.value;
+              }
+              if (item.value > maxValue) {
+                maxValue = item.value;
+              }
+            });
+            valueLen = (maxValue - minValue) / this.colorNum;
+          }
+          //生成热力颜色列表
+          this.activeRegionMat = getBasicMaterial(THREE, options.regionStyle.emphasisColor);
+          this.mapGroup = new THREE.Group();
+          let colorList = getGadientArray(
+            options.regionStyle.colorList[0],
+            options.regionStyle.colorList[1],
+            this.colorNum
+          );
+
+          const extrudeSettings = {
+            depth: options.regionStyle.depth * this.sizeScale,
+            bevelEnabled: false
+          };
+          //区块边框线颜色
+          const lineM = new THREE.LineBasicMaterial({
+            color: options.regionStyle.borderColor,
+            linewidth: options.regionStyle.borderWidth
+          });
+
+          for (let idx = 0; idx < this.geoJson.features.length; idx++) {
+            let a = this.geoJson.features[idx];
+
+            let regionColor = options.regionStyle.color;
+            let regionName = a.properties.name;
+            let regionIdx = options.data.findIndex((item) => item.name == regionName);
+            //计算区块热力值颜色
+            if (regionIdx >= 0) {
+              let regionData = options.data[regionIdx];
+              let cIdx = Math.floor((regionData.value - minValue) / valueLen);
+              cIdx = cIdx >= this.colorNum ? this.colorNum - 1 : cIdx;
+              regionColor = colorList[cIdx];
+              // console.log('%c' + regionName + regionData.value, 'background:' + regionColor);
+            }
+
+            let op = {
+              extrudeSettings,
+              lineM,
+              regionColor,
+              regionName,
+              regionIdx,
+              idx
+            };
+            if (a.geometry.type == 'MultiPolygon') {
+              a.geometry.coordinates.forEach((b) => {
+                b.forEach((c) => {
+                  op.c = c;
+                  this.createRegion(op);
+                });
+              });
+            } else {
+              a.geometry.coordinates.forEach((c) => {
+                op.c = c;
+                this.createRegion(op);
+              });
+            }
+          }
+
+          this.objGroup.add(this.mapGroup);
+        }
+
+        async createChart(that) {
+          this.that = that;
+          let startTime = new Date().getTime();
+
+          //限制控制器角度
+          this.controls.maxPolarAngle = Math.PI * 0.5;
+
+          let options = this.that;
+
+          if (this.adcode != options.adcode || !this.geoJson) {
+            //获取geojson
+            let res = await queryGeojson(options.adcode, true);
+            let res1 = await queryGeojson(options.adcode, false);
+            this.geoJson = res;
+            this.adcode = options.adcode;
+            this.geoJson1 = res1;
+
+            //获取区块信息
+            let info = getGeoInfo(this.geoJson1);
+            this.geoInfo = info;
+            this.bounding = info.bounding;
+            this.sizeScale = info.scale;
+          }
+          this.clean();
+          this.objGroup = new THREE.Group();
+
+          this.loaderExturdeGeometry();
+
+          if (options.series && options.series.length > 0) {
+            this.barGroup = new THREE.Group();
+            this.scatterGroup = new THREE.Group();
+            this.linesGroup = new THREE.Group();
+            this.circleGroup = new THREE.Group();
+            for (let idx = 0; idx < options.series.length; idx++) {
+              let op = options.series[idx];
+
+              switch (op.type) {
+                case 'bar3D':
+                  this.createBar(op, idx);
+                  break;
+                case 'lines3D':
+                  this.createLines(op, idx);
+                  break;
+                case 'scatter3D':
+                  this.createScatter(op, idx);
+                  break;
+              }
+            }
+            this.objGroup.add(this.barGroup);
+            this.objGroup.add(this.scatterGroup);
+            this.objGroup.add(this.circleGroup);
+            this.objGroup.add(this.linesGroup);
+          }
+
+          this.containerGroup = new THREE.Group();
+          let s = this.latlngScale / this.sizeScale;
+          this.objGroup.scale.set(s, s, s);
+          this.containerGroup.add(this.objGroup);
+
+          this.scene.add(this.containerGroup);
+
+          this.setModelCenter(this.objGroup, options.viewControl);
+
+          console.log('渲染耗时', new Date().getTime() - startTime, this.scene);
+        }
+      }
+      var map = new RegionMap();
+      map.initThree(document.getElementById('map'));
+      map.createChart(mapOption);
+
+      window.map = map;
+    </script>
+  </body>
+</html>

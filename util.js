@@ -235,8 +235,56 @@ export function getCanvasTextArray(textList, fontSize) {
 
   return canvas;
 }
+
 /**
- *生成文本精灵材质
+ *
+ * @param {String} text
+ * @param {Number} fontSize
+ * @param {String} color
+ * @returns
+ */
+export function getCanvasText(text, fontSize, color, bg) {
+  if (fontSize < 30) {
+    fontSize = 30;
+  }
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+  ctx.font = fontSize + 'px Arial';
+  ctx.fillStyle = color;
+  let padding = 5;
+  canvas.width = ctx.measureText(text + '').width + padding * 2;
+  canvas.height = fontSize * 1.2 + padding * 2;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  ctx.fillStyle = bg;
+
+  ctx.rect(0, 0, canvas.width, canvas.height);
+  ctx.fill();
+
+  ctx.font = fontSize + 'px Arial';
+  ctx.fillStyle = color;
+  ctx.fillText(text, padding, fontSize + padding * 0.5);
+  return canvas;
+}
+
+function getCanvaMat(THREE, canvas, scale = 0.1) {
+  const map = new THREE.CanvasTexture(canvas);
+  map.wrapS = THREE.RepeatWrapping;
+  map.wrapT = THREE.RepeatWrapping;
+
+  const material = new THREE.SpriteMaterial({
+    map: map,
+
+    side: THREE.DoubleSide
+  });
+  const mesh = new THREE.Sprite(material);
+  //缩小等比缩小canvas精灵贴图
+  mesh.scale.set(canvas.width * scale, canvas.height * scale);
+  return { material, mesh, map };
+}
+
+/**
+ *生成多行文本精灵材质
  * @param {THREE.js} THREE
  * @param {array} textlist 文本颜色数组
  * @param {number} fontSize 字体大小
@@ -245,17 +293,56 @@ export function getCanvasTextArray(textList, fontSize) {
 export function getTextArraySprite(THREE, textlist, fontSize) {
   //生成五倍大小的canvas贴图，避免大小问题出现显示模糊
   const canvas = getCanvasTextArray(textlist, fontSize * 5);
-  const map = new THREE.CanvasTexture(canvas);
-  map.wrapS = THREE.RepeatWrapping;
-  map.wrapT = THREE.RepeatWrapping;
 
-  const material = new THREE.SpriteMaterial({
-    map: map,
-    depthTest: false,
-    side: THREE.DoubleSide
-  });
-  const mesh = new THREE.Sprite(material);
-  //缩小等比缩小canvas精灵贴图
-  mesh.scale.set(canvas.width * 0.1, canvas.height * 0.1);
-  return { mesh, material, canvas };
+  return { ...getCanvaMat(THREE, canvas, 0.1), canvas };
+}
+
+/**
+ *生成单文本精灵材质
+ * @param {THREE.js} THREE
+ * @param {array} textlist 文本颜色数组
+ * @param {number} fontSize 字体大小
+ * @returns
+ */
+export function getTextSprite(THREE, text, fontSize, color, bg) {
+  //生成五倍大小的canvas贴图，避免大小问题出现显示模糊
+  const canvas = getCanvasText(text, fontSize * 50, color, bg);
+  console.log(canvas.width, canvas.height);
+  return { ...getCanvaMat(THREE, canvas, 0.02), canvas };
+}
+/***
+ * 获取渐变色数组
+ * @param {string} startColor 开始颜色
+ * @param {string} endColor  结束颜色
+ * @param {number} step 颜色数量
+ */
+export function getGadientArray(startColor, endColor, step) {
+  let { red: startR, green: startG, blue: startB } = getColor(startColor);
+  let { red: endR, green: endG, blue: endB } = getColor(endColor);
+
+  let sR = (endR - startR) / step; //总差值
+  let sG = (endG - startG) / step;
+  let sB = (endB - startB) / step;
+  let colorArr = [];
+  for (let i = 0; i < step; i++) {
+    //计算每一步的hex值
+
+    let c =
+      'rgb(' +
+      parseInt(sR * i + startR) +
+      ',' +
+      parseInt(sG * i + startG) +
+      ',' +
+      parseInt(sB * i + startB) +
+      ')';
+    // console.log('%c' + c, 'background:' + c);
+
+    colorArr.push(c);
+  }
+  return colorArr;
+}
+
+export function getRgbColor(color) {
+  let res = getColor(color);
+  return `rgb(${res.red},${res.green},${res.blue})`;
 }
