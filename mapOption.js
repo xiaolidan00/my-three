@@ -21,7 +21,7 @@ console.log(data);
 export default {
   //文本提示样式
   tooltip: {
-    show: false, //是否显示提示框
+    show: true, //是否显示提示框
     //字体颜色
     color: 'rgb(255,255,255)',
     //字体大小
@@ -57,6 +57,8 @@ export default {
     autoRotate: false,
     rotateSpeed: 2000
   },
+  //是否下钻
+  isDown: false,
   //地址名称
   address: mapJson.name,
   //地址编码

@@ -160,18 +160,21 @@
           //画三个波纹圈
           //外圈
           ctx.lineWidth = radius * 0.2;
+          ctx.lineWidth = ctx.lineWidth < 1 ? 1 : ctx.lineWidth;
           ctx.beginPath();
           ctx.arc(canvas.width * 0.5, canvas.height * 0.5, radius, 0, 2 * Math.PI);
           ctx.closePath();
           ctx.stroke();
           //中圈
           ctx.lineWidth = radius * 0.1;
+          ctx.lineWidth = ctx.lineWidth < 1 ? 1 : ctx.lineWidth;
           ctx.beginPath();
           ctx.arc(canvas.width * 0.5, canvas.height * 0.5, radius * 1.3, 0, 2 * Math.PI);
           ctx.closePath();
           ctx.stroke();
           //内圈
           ctx.lineWidth = radius * 0.05;
+          ctx.lineWidth = ctx.lineWidth < 1 ? 1 : ctx.lineWidth;
           ctx.beginPath();
           ctx.arc(canvas.width * 0.5, canvas.height * 0.5, radius * 1.5, 0, 2 * Math.PI);
           ctx.closePath();
@@ -249,7 +252,7 @@
               //波纹圈
               if (op.itemStyle.isCircle) {
                 const { material: circleMaterial } = this.getCircleMaterial(
-                  op.itemStyle.maxRadius * 20,
+                  op.itemStyle.maxRadius * 20 * this.sizeScale,
                   color
                 );
 
@@ -404,7 +407,7 @@
             this.activeObj = newActiveObj;
           }
           //点击下钻
-          if (isChange && newActiveObj && this.activeObj) {
+          if (this.that.isDown && isChange && newActiveObj && this.activeObj) {
             let f = this.geoJson.features[this.activeObj.idx];
             this.that.adcode = f.properties.adcode;
             this.that.address = f.properties.name;
