@@ -58,7 +58,7 @@ export default {
     rotateSpeed: 2000
   },
   //是否下钻
-  isDown: false,
+  isDown: true,
   //地址名称
   address: mapJson.name,
   //地址编码
