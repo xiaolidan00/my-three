@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+    <style>
+      #font {
+        background-color: black;
+        height: 800px;
+        width: 800px;
+      }
+    </style>
+
+    <script type="x-shader/x-vertex" id="vertexshader">
+
+                  uniform float amplitude;
+
+                  attribute vec3 aColor;
+                  attribute vec3 displacement;
+
+                  varying vec3 vColor;
+
+                  void main() {
+                      vColor = aColor;
+      //position+normal与每个面分离
+      // position  + normal * amplitude 每个面分离的距离，sin回归重复
+      //  displacement 随机三角形位置
+                      vec3 newPosition = position+normal* amplitude  * displacement;
+                      gl_Position = projectionMatrix * modelViewMatrix * vec4( newPosition, 1.0 );
+
+                  }
+    </script>
+
+    <script type="x-shader/x-fragment" id="fragmentshader">
+
+      varying vec3 vColor;
+      void main() {
+              gl_FragColor =vec4(   vColor, 1.0 );
+
+      }
+    </script>
+  </head>
+  <body>
+    <div id="font"></div>
+    <script type="module">
+      import * as THREE from '../node_modules/three/build/three.module.js';
+      import ThreeBase from '../ThreeBase.js';
+      import { TessellateModifier } from '../node_modules/three/examples/jsm/modifiers/TessellateModifier.js';
+      class MyFont extends ThreeBase {
+        constructor() {
+          super();
+        }
+        animateAction() {
+          if (this.mesh) {
+            if (this.time >= 0) {
+              this.time += 0.01;
+              this.mesh.material.uniforms.amplitude.value = 2.0 - this.time;
+              if (this.time >= 2.0) {
+                this.time = -1;
+              }
+            } else {
+              this.mesh.material.uniforms.amplitude.value = 0.0;
+            }
+          }
+        }
+
+        createChart(that) {
+          if (this.mesh) {
+            this.cleanObj(this.mesh);
+            this.mesh = null;
+          }
+          this.that = that;
+          let geometry = new THREE.CylinderGeometry(that.topRadius, that.bottomRadius, that.height);
+          //图形居中
+          geometry.center();
+          //细化修改器
+          const tessellateModifier = new TessellateModifier(5, 6);
+          //修改图形的面数
+          geometry = tessellateModifier.modify(geometry);
+
+          //转为缓存图形，方便获取点面等数据
+          geometry = new THREE.BufferGeometry().fromGeometry(geometry);
+
+          //三角形面数
+          const numFaces = geometry.attributes.position.count / 3;
+          //需要赋值的点颜色数组
+          const colors = new Float32Array(numFaces * 3 * 3);
+          //需要赋值的偏移变量数组
+          const displacement = new Float32Array(numFaces * 3 * 3);
+
+          const color = new THREE.Color();
+
+          for (let f = 0; f < numFaces; f++) {
+            const index = 9 * f;
+            //随机颜色
+            color.setRGB(
+              Math.random() * 0.5 + 0.5,
+              Math.random() * 0.5 + 0.5,
+              Math.random() * 0.5 + 0.5
+            );
+            //随机偏移值
+            const d = that.minDistance + that.distance * Math.random();
+
+            for (let i = 0; i < 3; i++) {
+              //给3个点赋值同样的颜色，形成一个颜色的三角形
+              colors[index + 3 * i] = color.r;
+              colors[index + 3 * i + 1] = color.g;
+              colors[index + 3 * i + 2] = color.b;
+              //给3个点赋值偏移值，形成对应的三角形
+              displacement[index + 3 * i] = d;
+              displacement[index + 3 * i + 1] = d + Math.random() * that.minDistance;
+              displacement[index + 3 * i + 2] = d + Math.random() * that.minDistance;
+            }
+          }
+
+          geometry.setAttribute('aColor', new THREE.BufferAttribute(colors, 3));
+          geometry.setAttribute('displacement', new THREE.BufferAttribute(displacement, 3));
+
+          const shaderMaterial = new THREE.ShaderMaterial({
+            uniforms: {
+              endColor: { value: new THREE.Color('#FFD700') },
+              amplitude: { value: 0.0 }
+            },
+            vertexShader: document.getElementById('vertexshader').textContent,
+            fragmentShader: document.getElementById('fragmentshader').textContent
+          });
+
+          //
+
+          let mesh = new THREE.Mesh(geometry, shaderMaterial);
+
+          this.mesh = mesh;
+          this.scene.add(mesh);
+          this.time = 0;
+        }
+      }
+
+      var myFont = new MyFont();
+      myFont.initThree(document.getElementById('font'));
+      myFont.createChart({
+        topRadius: 10,
+        bottomRadius: 20,
+        height: 10,
+        distance: 10,
+        minDistance: 5,
+        color: '#FFD700'
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+    <style>
+      #font {
+        background-color: black;
+        height: 800px;
+        width: 800px;
+      }
+    </style>
+
+    <script type="x-shader/x-vertex" id="vertexshader">
+
+                      uniform float time;
+
+                      attribute vec3 aColor;
+                      attribute vec3 displacement;
+
+                      varying vec3 vColor;
+
+
+                      void main() {
+                          vColor = aColor;
+                         // gl_Position =projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+
+         // vec3 newPosition =position+normal*2.0;//每个面偏移
+
+      //  vec3 newPosition =position+normal*displacement;//每个面随机偏移
+
+
+
+                         vec3 newPosition = position+normal* time  * displacement;
+                        gl_Position = projectionMatrix * modelViewMatrix * vec4( newPosition, 1.0 );
+
+                      }
+    </script>
+
+    <script type="x-shader/x-fragment" id="fragmentshader">
+
+      varying vec3 vColor;
+      void main() {
+              gl_FragColor =vec4(vColor, 1.0 );
+
+      }
+    </script>
+  </head>
+  <body>
+    <div id="font"></div>
+    <script type="module">
+      import * as THREE from '../node_modules/three/build/three.module.js';
+      import ThreeBase from '../ThreeBase.js';
+      import { TessellateModifier } from '../node_modules/three/examples/jsm/modifiers/TessellateModifier.js';
+      class MyFont extends ThreeBase {
+        constructor() {
+          super();
+        }
+        animateAction() {
+          if (this.mesh) {
+            //让偏移值随时间递减到0，汇聚成原来的字体，时间值递减
+            if (this.time >= 0) {
+              this.time += 0.005;
+              this.mesh.material.uniforms.time.value = 2.0 - this.time;
+              if (this.time >= 2.0) {
+                this.time = -1;
+              }
+            } else {
+              this.mesh.material.uniforms.time.value = 0.0;
+            }
+          }
+        }
+        createChart(that) {
+          if (this.mesh) {
+            this.cleanObj(this.mesh);
+            this.mesh = null;
+          }
+          this.that = that;
+          if (!this.loader) {
+            this.loader = new THREE.FontLoader();
+          }
+          this.loader.load('DIN_Bold.json', (font) => {
+            //创建字体图形
+            let geometry = new THREE.TextGeometry(that.text, {
+              font: font,
+              size: that.fontSize, //字体大小
+              height: that.thickness, //字体厚度
+              curveSegments: 3,
+              bevelThickness: 2,
+              bevelSize: 1,
+              bevelEnabled: true
+            });
+            //图形居中
+            geometry.center();
+            //细化修改器
+            const tessellateModifier = new TessellateModifier(8, 6);
+            //修改图形的面数
+            geometry = tessellateModifier.modify(geometry);
+
+            //转为缓存图形，方便获取点面等数据
+            geometry = new THREE.BufferGeometry().fromGeometry(geometry);
+            //三角形面数
+            const numFaces = geometry.attributes.position.count / 3;
+            //需要赋值的点颜色数组
+            const colors = new Float32Array(numFaces * 3 * 3);
+            //需要赋值的偏移变量数组
+            const displacement = new Float32Array(numFaces * 3 * 3);
+
+            const color = new THREE.Color();
+
+            for (let f = 0; f < numFaces; f++) {
+              const index = 9 * f;
+              //随机颜色
+              color.setRGB(
+                Math.random() * 0.5 + 0.5,
+                Math.random() * 0.5 + 0.5,
+                Math.random() * 0.5 + 0.5
+              );
+              //随机偏移值
+              const d = that.minDistance + that.distance * Math.random();
+
+              for (let i = 0; i < 3; i++) {
+                //给3个点赋值同样的颜色，形成一个颜色的三角形
+                colors[index + 3 * i] = color.r;
+                colors[index + 3 * i + 1] = color.g;
+                colors[index + 3 * i + 2] = color.b;
+                //给3个点赋值偏移值，形成对应的三角形
+                displacement[index + 3 * i] = d;
+                displacement[index + 3 * i + 1] = d + Math.random() * that.minDistance;
+                displacement[index + 3 * i + 2] = d + Math.random() * that.minDistance;
+              }
+            }
+            //设置顶点着色器值
+            geometry.setAttribute('aColor', new THREE.BufferAttribute(colors, 3));
+            geometry.setAttribute('displacement', new THREE.BufferAttribute(displacement, 3));
+            //着色器材质
+            const shaderMaterial = new THREE.ShaderMaterial({
+              uniforms: {
+                time: { value: 0.0 }
+              },
+              vertexShader: document.getElementById('vertexshader').textContent,
+              fragmentShader: document.getElementById('fragmentshader').textContent
+            });
+
+            //
+
+            let mesh = new THREE.Mesh(geometry, shaderMaterial);
+
+            this.mesh = mesh;
+            this.scene.add(mesh);
+            this.time = 0;
+          });
+        }
+      }
+
+      var myFont = new MyFont();
+      myFont.initThree(document.getElementById('font'));
+      myFont.createChart({
+        text: '666', //文本
+        fontSize: 20, //字体大小
+        thickness: 5, //厚度
+        distance: 30, //偏移距离
+        minDistance: 5 //最小偏移距离
+      });
+    </script>
+  </body>
+</html>
