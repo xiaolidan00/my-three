@@ -8,6 +8,7 @@ export default class ThreeBase {
     this.isStats = false;
     this.isAxis = false;
     this.isRaycaster = false;
+    this.initCameraPos = [0, 100, 0];
   }
   initRaycaster() {
     this.raycaster = new THREE.Raycaster();
@@ -83,7 +84,7 @@ export default class ThreeBase {
       1,
       100000
     );
-    this.camera.position.z = 100;
+    this.camera.position.set(...this.initCameraPos);
 
     if (this.isAxis) {
       const axesHelper = new THREE.AxesHelper(500);

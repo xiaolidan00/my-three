@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+    <style>
+      #canvas {
+        background-color: black;
+        height: 800px;
+        width: 800px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="canvas"></div>
+    <script type="module">
+      import * as THREE from '../node_modules/three/build/three.module.js';
+      import ThreeBase from '../ThreeBase.js';
+
+      import { GLTFLoader } from '../node_modules/three/examples/jsm/loaders/GLTFLoader.js';
+      import { circlePointsShader } from '../shaderUtil.js';
+      class MyApple extends ThreeBase {
+        constructor() {
+          super();
+          this.initCameraPos = [1, 10, 10];
+          this.time = 0;
+          this.speed = 0.001;
+          this.speed1 = 0.0001;
+        }
+
+        animateAction() {
+          if (this.mesh && this.time >= 0) {
+            this.speed += this.speed1;
+            this.time += this.speed;
+
+            const positions = this.mesh.geometry.attributes.position;
+
+            const normal = this.mesh.geometry.attributes.normal;
+
+            const initialPositions = this.mesh.geometry.attributes.initialPosition;
+
+            const count = positions.count;
+
+            for (let i = 0; i < count; i++) {
+              const px = positions.getX(i);
+              const py = positions.getY(i);
+              const pz = positions.getZ(i);
+
+              const ix = initialPositions.getX(i);
+              const iy = initialPositions.getY(i);
+              const iz = initialPositions.getZ(i);
+              const dx = px + this.time * ix;
+              const dy = py + this.time * iy;
+              const dz = pz + this.time * iz;
+              positions.setXYZ(
+                i,
+                Math.abs(dx) >= Math.abs(ix) ? ix : dx,
+                Math.abs(dy) >= Math.abs(iy) ? iy : dy,
+                Math.abs(dz) >= Math.abs(iz) ? iz : dz
+              );
+            }
+            positions.needsUpdate = true;
+
+            if (this.time >= 1) {
+              this.time = -1;
+            }
+          }
+        }
+        loadModel(url) {
+          return new Promise((resolve) => {
+            if (!this.loader) {
+              this.loader = new GLTFLoader();
+            }
+            this.loader.load(
+              url,
+              (obj) => {
+                resolve(obj.scene);
+              },
+
+              function (xhr) {
+                if (xhr.lengthComputable) {
+                  const percentComplete = (xhr.loaded / xhr.total) * 100;
+                  console.log('model ' + Math.round(percentComplete, 2) + '% downloaded');
+                }
+              },
+              function (error) {
+                resolve(null);
+                console.error(error);
+              }
+            );
+          });
+        }
+        createChart(that) {
+          this.loadModel('apple.glb').then((model) => {
+            let obj = model.children[0].children[0];
+            let geometry = obj.geometry;
+            geometry.scale(2, 2, 2);
+            geometry.center();
+            const positions = geometry.attributes.position;
+            geometry.setAttribute('initialPosition', positions.clone());
+            const pos = positions.clone();
+            const count = pos.count;
+
+            for (let i = 0; i < count; i++) {
+              pos.setXYZ(i, 0, 0, 0);
+            }
+            pos.needsUpdate = true;
+
+            geometry.setAttribute('position', pos);
+
+            geometry.attributes.position.setUsage(THREE.DynamicDrawUsage);
+
+            let colors = [];
+
+            for (let i = 0; i < positions.count; i++) {
+              colors.push(Math.random(), Math.random(), Math.random());
+            }
+            geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+
+            let material = new THREE.PointsMaterial({
+              size: 1,
+              color: new THREE.Color(that.color),
+              // vertexColors: true,
+              transparent: true,
+              depthTest: false
+            });
+            material.onBeforeCompile = (shader) => {
+              console.log(shader);
+              //修改片元着色器，使其变成发光圆点
+              shader.fragmentShader = shader.fragmentShader.replace(
+                `gl_FragColor = vec4( outgoingLight, diffuseColor.a );`,
+                circlePointsShader
+              );
+            };
+            this.mesh = new THREE.Points(geometry, material);
+
+            this.scene.add(this.mesh);
+            this.setView(that.cameraPos, that.controlsPos);
+          });
+        }
+      }
+
+      var myApple = new MyApple();
+      window.myApple = myApple;
+      myApple.initThree(document.getElementById('canvas'));
+      myApple.createChart({
+        color: '#FF0000',
+
+        cameraPos: {
+          x: 14.862527860505498,
+          y: -7.19472939129663,
+          z: 40.59051109739565
+        },
+        controlsPos: {
+          x: 0,
+          y: 0,
+          z: 0
+        }
+      });
+    </script>
+  </body>
+</html>

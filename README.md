@@ -9,3 +9,9 @@
 ## font/font.html 三角形 3D 字体
 
 ## font/model.html 三角形汇聚形状
+
+## points/apple.html 粒子出场（从下到上出现）
+
+## points/apple1.html 粒子出场（四周粒子聚集形成 3D 形状）
+
+## points/apple2.html 粒子出场（中心爆发形成 3D 形状）

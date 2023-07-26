@@ -64,3 +64,12 @@ export function getLineShaderMaterial(THREE, color, color1) {
     transparent: true
   });
 }
+
+export const circlePointsShader = `float d=distance(gl_PointCoord, vec2(0.5, 0.5));
+if(d < 0.3){
+  gl_FragColor = diffuseColor;
+}else{
+  gl_FragColor.rgb = diffuseColor.rgb;
+float cd =(1.0-d*2.0);
+gl_FragColor.a=diffuseColor.a*cd*0.5;
+}`;
