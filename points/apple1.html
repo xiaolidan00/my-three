@@ -30,28 +30,39 @@
         }
 
         animateAction() {
-          if (this.mesh && this.time >= 0) {
-            this.speed += this.speed1;
-            this.time += this.speed;
-            const positions = this.mesh.geometry.attributes.position;
-            const normal = this.mesh.geometry.attributes.normal;
-            const initialPositions = this.mesh.geometry.attributes.initialPosition;
-            const displacement = this.mesh.geometry.attributes.displacement;
-            const count = positions.count;
-            let t = 2.0 - this.time;
-            for (let i = 0; i < count; i++) {
-              const d = displacement.getX(i) * t;
-              const ix = initialPositions.getX(i);
-              const iy = initialPositions.getY(i);
-              const iz = initialPositions.getZ(i);
-              const nx = normal.getX(i);
-              const ny = normal.getY(i);
-              const nz = normal.getZ(i);
-              positions.setXYZ(i, ix - nx * d, iy - ny * d, iz - nz * d);
-            }
-            positions.needsUpdate = true;
-            if (this.time >= 2) {
-              this.time = -1;
+          if (this.mesh) {
+            if (this.time >= 0) {
+              this.speed += this.speed1;
+              this.time += this.speed;
+              const positions = this.mesh.geometry.attributes.position;
+              const normal = this.mesh.geometry.attributes.normal;
+              const initialPositions = this.mesh.geometry.attributes.initialPosition;
+              const displacement = this.mesh.geometry.attributes.displacement;
+              const count = positions.count;
+              let t = 2.0 - this.time;
+              for (let i = 0; i < count; i++) {
+                const d = displacement.getX(i) * t;
+                const ix = initialPositions.getX(i);
+                const iy = initialPositions.getY(i);
+                const iz = initialPositions.getZ(i);
+                const nx = normal.getX(i);
+                const ny = normal.getY(i);
+                const nz = normal.getZ(i);
+                positions.setXYZ(i, ix - nx * d, iy - ny * d, iz - nz * d);
+              }
+              positions.needsUpdate = true;
+              if (this.time >= 2) {
+                this.time = -1;
+                // this.mesh.material.vertexColors = true;
+                // this.mesh.material.needsUpdate = true;
+              }
+            } else {
+              const colors = this.mesh.geometry.attributes.color;
+              const count = colors.count;
+              for (let i = 0; i < count; i++) {
+                colors.setXYZ(i, Math.random(), Math.random(), Math.random());
+              }
+              colors.needsUpdate = true;
             }
           }
         }
@@ -99,10 +110,18 @@
 
             geometry.setAttribute('displacement', new THREE.BufferAttribute(displacement, 1));
             geometry.attributes.position.setUsage(THREE.DynamicDrawUsage);
+
+            let colors = [];
+
+            for (let i = 0; i < positions.count; i++) {
+              colors.push(Math.random(), Math.random(), Math.random());
+            }
+            geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+
             let material = new THREE.PointsMaterial({
               size: 1,
               color: new THREE.Color(that.color),
-              // vertexColors: true,
+              vertexColors: true,
               transparent: true,
               depthTest: false
             });

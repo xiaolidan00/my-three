@@ -25,45 +25,56 @@
           super();
           this.initCameraPos = [1, 10, 10];
           this.time = 0;
+          this.max = 0;
           this.speed = 0.001;
-          this.speed1 = 0.0001;
+          this.speed1 = 0.001;
         }
 
         animateAction() {
-          if (this.mesh && this.time >= 0) {
-            this.speed += this.speed1;
-            this.time += this.speed;
+          if (this.mesh) {
+            if (this.time >= 0) {
+              this.speed += this.speed1;
+              this.time += this.speed;
 
-            const positions = this.mesh.geometry.attributes.position;
+              const positions = this.mesh.geometry.attributes.position;
 
-            const normal = this.mesh.geometry.attributes.normal;
+              const normal = this.mesh.geometry.attributes.normal;
 
-            const initialPositions = this.mesh.geometry.attributes.initialPosition;
+              const initialPositions = this.mesh.geometry.attributes.initialPosition;
 
-            const count = positions.count;
+              const count = positions.count;
+              const radius = this.time * this.max;
 
-            for (let i = 0; i < count; i++) {
-              const px = positions.getX(i);
-              const py = positions.getY(i);
-              const pz = positions.getZ(i);
+              for (let i = 0; i < count; i++) {
+                const nx = normal.getX(i);
+                const ny = normal.getY(i);
+                const nz = normal.getZ(i);
 
-              const ix = initialPositions.getX(i);
-              const iy = initialPositions.getY(i);
-              const iz = initialPositions.getZ(i);
-              const dx = px + this.time * ix;
-              const dy = py + this.time * iy;
-              const dz = pz + this.time * iz;
-              positions.setXYZ(
-                i,
-                Math.abs(dx) >= Math.abs(ix) ? ix : dx,
-                Math.abs(dy) >= Math.abs(iy) ? iy : dy,
-                Math.abs(dz) >= Math.abs(iz) ? iz : dz
-              );
-            }
-            positions.needsUpdate = true;
+                const ix = initialPositions.getX(i);
+                const iy = initialPositions.getY(i);
+                const iz = initialPositions.getZ(i);
 
-            if (this.time >= 1) {
-              this.time = -1;
+                positions.setXYZ(
+                  i,
+                  radius >= Math.abs(ix) ? ix : radius * nx,
+                  radius >= Math.abs(iy) ? iy : radius * ny,
+                  radius >= Math.abs(iz) ? iz : radius * nz
+                );
+              }
+              positions.needsUpdate = true;
+
+              if (this.time >= 1) {
+                this.time = -1;
+                // this.mesh.material.vertexColors = true;
+                // this.mesh.material.needsUpdate = true;
+              }
+            } else {
+              const colors = this.mesh.geometry.attributes.color;
+              const count = colors.count;
+              for (let i = 0; i < count; i++) {
+                colors.setXYZ(i, Math.random(), Math.random(), Math.random());
+              }
+              colors.needsUpdate = true;
             }
           }
         }
@@ -97,6 +108,16 @@
             let geometry = obj.geometry;
             geometry.scale(2, 2, 2);
             geometry.center();
+            const b = geometry.boundingBox;
+            this.max = Math.max(
+              Math.abs(b.min.x),
+              Math.abs(b.min.y),
+              Math.abs(b.min.z),
+              Math.abs(b.max.x),
+              Math.abs(b.max.y),
+              Math.abs(b.max.z)
+            );
+
             const positions = geometry.attributes.position;
             geometry.setAttribute('initialPosition', positions.clone());
             const pos = positions.clone();
@@ -121,7 +142,7 @@
             let material = new THREE.PointsMaterial({
               size: 1,
               color: new THREE.Color(that.color),
-              // vertexColors: true,
+              vertexColors: true,
               transparent: true,
               depthTest: false
             });
@@ -130,6 +151,7 @@
               //修改片元着色器，使其变成发光圆点
               shader.fragmentShader = shader.fragmentShader.replace(
                 `gl_FragColor = vec4( outgoingLight, diffuseColor.a );`,
+
                 circlePointsShader
               );
             };

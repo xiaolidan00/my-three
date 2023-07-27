@@ -31,19 +31,28 @@
         }
 
         animateAction() {
-          if (this.mesh && this.distance <= this.max) {
-            this.speed += this.speed1;
-            this.distance += this.speed;
-            let dist = this.distance;
-            const positions = this.mesh.geometry.attributes.position;
-            const initialPositions = this.mesh.geometry.attributes.initialPosition;
-            const count = positions.count;
-            let t = this.max - this.distance;
-            for (let i = 0; i < count; i++) {
-              const iy = initialPositions.getY(i);
-              positions.setXYZ(i, positions.getX(i), iy <= dist ? iy : dist, positions.getZ(i));
+          if (this.mesh) {
+            if (this.distance <= this.max) {
+              this.speed += this.speed1;
+              this.distance += this.speed;
+              let dist = this.distance;
+              const positions = this.mesh.geometry.attributes.position;
+              const initialPositions = this.mesh.geometry.attributes.initialPosition;
+              const count = positions.count;
+              let t = this.max - this.distance;
+              for (let i = 0; i < count; i++) {
+                const iy = initialPositions.getY(i);
+                positions.setXYZ(i, positions.getX(i), iy <= dist ? iy : dist, positions.getZ(i));
+              }
+              positions.needsUpdate = true;
+            } else {
+              const colors = this.mesh.geometry.attributes.color;
+              const count = colors.count;
+              for (let i = 0; i < count; i++) {
+                colors.setXYZ(i, Math.random(), Math.random(), Math.random());
+              }
+              colors.needsUpdate = true;
             }
-            positions.needsUpdate = true;
           }
         }
         loadModel(url) {
@@ -96,16 +105,16 @@
 
             geometry.attributes.position.setUsage(THREE.DynamicDrawUsage);
 
-            // let colors = [];
+            let colors = [];
 
-            // for (let i = 0; i < positions.count; i++) {
-            //   colors.push(Math.random(), Math.random(), Math.random());
-            // }
-            // geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+            for (let i = 0; i < positions.count; i++) {
+              colors.push(Math.random(), Math.random(), Math.random());
+            }
+            geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
             let material = new THREE.PointsMaterial({
               size: 1,
               color: new THREE.Color(that.color),
-              // vertexColors: true,
+              vertexColors: true,
               transparent: true,
               depthTest: false
             });
