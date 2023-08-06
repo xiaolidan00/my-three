@@ -237,16 +237,13 @@ export function getCanvasTextArray(textList, fontSize) {
 }
 
 /**
- *
+ *canvas文本
  * @param {String} text
  * @param {Number} fontSize
  * @param {String} color
  * @returns
  */
 export function getCanvasText(text, fontSize, color, bg) {
-  if (fontSize < 30) {
-    fontSize = 30;
-  }
   const canvas = document.createElement('canvas');
   const ctx = canvas.getContext('2d');
   ctx.font = fontSize + 'px Arial';
@@ -265,6 +262,28 @@ export function getCanvasText(text, fontSize, color, bg) {
   ctx.fillStyle = color;
   ctx.fillText(text, padding, fontSize + padding * 0.5);
   return canvas;
+}
+/***
+ * 文本网格
+ * @param {String} text
+ * @param {Number} fontSize
+ * @param {String} color
+ */
+export function getTextMesh(THREE, text, fontSize, color) {
+  //canvas贴图一定要放大倍数，否则近看会模糊
+  const canvas = getCanvasText(text, fontSize * 10, color, 'rgba(0,0,0,0)');
+  const map = new THREE.CanvasTexture(canvas);
+  map.wrapS = THREE.RepeatWrapping;
+  map.wrapT = THREE.RepeatWrapping;
+  const material = new THREE.MeshBasicMaterial({
+    map: map,
+    transparent: true,
+    side: THREE.DoubleSide
+  });
+  //创建二维平面板时对应缩小比例
+  const geometry = new THREE.PlaneGeometry(canvas.width * 0.1, canvas.height * 0.1);
+  const mesh = new THREE.Mesh(geometry, material);
+  return { material, geometry, canvas, mesh };
 }
 
 function getCanvaMat(THREE, canvas, scale = 0.1) {
