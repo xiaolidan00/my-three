@@ -272,13 +272,22 @@ export function getCanvasText(text, fontSize, color, bg) {
 export function getTextMesh(THREE, text, fontSize, color) {
   //canvas贴图一定要放大倍数，否则近看会模糊
   const canvas = getCanvasText(text, fontSize * 10, color, 'rgba(0,0,0,0)');
+
   const map = new THREE.CanvasTexture(canvas);
+  map.wrapS = THREE.RepeatWrapping;
+  map.wrapT = THREE.RepeatWrapping;
+  //透明贴图
+  const canvasAlpha = getCanvasText(text, fontSize * 10, '#FFFFFF', 'rgba(0,0,0,0)');
+  const mapAlpha = new THREE.CanvasTexture(canvasAlpha);
   map.wrapS = THREE.RepeatWrapping;
   map.wrapT = THREE.RepeatWrapping;
   const material = new THREE.MeshBasicMaterial({
     map: map,
     transparent: true,
-    side: THREE.DoubleSide
+    side: THREE.DoubleSide,
+    //设置透明贴图避免字体重叠
+    alphaTest: 0.5,
+    alphaMap: mapAlpha
   });
   //创建二维平面板时对应缩小比例
   const geometry = new THREE.PlaneGeometry(canvas.width * 0.1, canvas.height * 0.1);

@@ -62,8 +62,8 @@ export default class ThreeBase {
     THREE.Cache.enabled = true;
     this.renderer = new THREE.WebGLRenderer({
       antialias: true,
-      alpha: true
-      // logarithmicDepthBuffer: true
+      alpha: true,
+      logarithmicDepthBuffer: this.isDepthBuffer || false
     });
     this.renderer.setClearColor(0x000000, 0);
     this.renderer.setPixelRatio(window.devicePixelRatio);

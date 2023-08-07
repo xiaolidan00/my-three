@@ -24,7 +24,8 @@
           super();
           this.initCameraPos = [35, 35, 35];
           this.pos = {};
-          //   this.isAxis = true;
+          // this.isDepthBuffer = true;
+          // this.isAxis = true;
         }
         getPos() {
           let a = parseInt(Math.random() * this.that.data.length);
@@ -109,6 +110,7 @@
               color: that.color,
               transparent: true,
               opacity: 0.2,
+
               wireframe: true
             });
             const mm = new THREE.Mesh(g, m);
@@ -134,7 +136,7 @@
         let a = i % 10;
         list.push({
           //   name: `${a}${a}${a}${a}`,
-          name: getRandLetterNum(4),
+          name: getRandLetterNum(8),
           value: Math.round(Math.random() * 100)
         });
       }
