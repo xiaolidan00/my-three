@@ -190,6 +190,7 @@ export function getShadowColor(color, step) {
   }
   return list;
 }
+
 export function getDrawColors(cs, cLen) {
   let list = [];
   for (let i = 0; i < cs.length; i++) {

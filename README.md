@@ -17,3 +17,7 @@
 ## points/apple2.html 粒子出场（中心爆发形成 3D 形状）
 
 ## wordcloud/wordcloud.html 3D 词云
+
+## pyramid/pyramid.html 3D 金字塔
+
+## pyramid/pyramid1.html 渐变 3D 金字塔

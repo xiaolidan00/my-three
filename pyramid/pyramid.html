@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+    <style>
+      #canvas {
+        background-color: black;
+        height: 800px;
+        width: 800px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="canvas"></div>
+    <script type="module">
+      import * as THREE from '../node_modules/three/build/three.module.js';
+      import ThreeBase from '../ThreeBase.js';
+      import {
+        getShadowColor,
+        getBasicMaterial,
+        getTextArraySprite,
+        getDrawColors
+      } from '../util.js';
+      class MyPyramid extends ThreeBase {
+        constructor() {
+          super();
+          this.cLen = 5;
+          this.intervalH = 0.3;
+          this.initCameraPos = [1, 10, 10];
+        }
+
+        createChart(that) {
+          this.that = that;
+          if (this.objGroup) {
+            this.cleanObj(this.objGroup);
+          }
+
+          this.objGroup = new THREE.Group();
+          this.scene.add(this.objGroup);
+          this.colors = getDrawColors(that.colors, this.cLen);
+          let { pHeight: height, pWidth: width, isDown, fontColor } = that;
+
+          let list = that.data.sort((a, b) => a.value - b.value);
+
+          for (let idx = 0; idx < list.length; idx++) {
+            if (this.that.isLock) {
+              return;
+            }
+            let item = list[idx];
+            let top = idx * width;
+            let bottom = (idx + 1) * width;
+            let geometry = new THREE.CylinderGeometry(
+              isDown ? bottom : top,
+              isDown ? top : bottom,
+              height,
+              4,
+              4
+            );
+
+            let y =
+              (isDown ? idx + 1 : list.length - idx) * height -
+              (isDown ? -idx : idx) * height * this.intervalH;
+
+            if (idx == 0) {
+              geometry.faces.forEach((f, fIdx) => {
+                if (fIdx < 28) {
+                  geometry.faces[fIdx].materialIndex = parseInt(fIdx / 7);
+                } else {
+                  geometry.faces[fIdx].materialIndex = 3;
+                }
+              });
+            } else {
+              geometry.faces.forEach((f, fIdx) => {
+                if (fIdx < 32) {
+                  geometry.faces[fIdx].materialIndex = parseInt(fIdx / 8);
+                } else {
+                  geometry.faces[fIdx].materialIndex = 4;
+                }
+              });
+            }
+            let cs = this.colors[idx % this.colors.length];
+            let ms = [];
+            for (let k = 0; k < cs.length; k++) {
+              ms.push(getBasicMaterial(THREE, cs[k]));
+            }
+            let mesh = new THREE.Mesh(geometry, ms);
+
+            mesh.name = 'p' + idx;
+            mesh.position.y = y;
+            mesh.rotation.y = -Math.PI * 0.25;
+
+            this.objGroup.add(mesh);
+
+            let textList = [
+              { text: item.name, color: fontColor },
+              { text: item.value + '', color: fontColor }
+            ];
+
+            const { mesh: textMesh } = getTextArraySprite(THREE, textList, height * 0.5);
+            textMesh.material.depthTest = false;
+            textMesh.name = 'f' + idx;
+            textMesh.position.z = idx == 0 ? width : (idx + 0.5) * width;
+            textMesh.position.y = y;
+            textMesh.position.x = 0;
+            this.objGroup.add(textMesh);
+          }
+
+          this.setView(that.cameraPos, that.controlsPos);
+        }
+      }
+
+      var myPyramid = new MyPyramid();
+      window.myPyramid = myPyramid;
+      myPyramid.initThree(document.getElementById('canvas'));
+      myPyramid.createChart({
+        //颜色
+        colors: ['#fcc02a', '#f16b91', '#187bac'],
+        //数据
+        data: [
+          { name: '小学', value: 100 },
+          { name: '中学', value: 200 },
+          { name: '大学', value: 300 }
+        ],
+        //是否倒金字塔
+        isDown: false,
+        //每层高度
+        pHeight: 40,
+        //递增宽度
+        pWidth: 20,
+        //字体颜色
+        fontColor: 'rgb(255,255,255)',
+        //相机位置
+        cameraPos: {
+          x: 178.92931795958233,
+          y: 210.63511436762354,
+          z: 357.5498605603872
+        },
+        //控制器位置
+        controlsPos: {
+          x: -4.895320674125236,
+          y: 27.139140036227758,
+          z: 1.5576536521931232
+        }
+      });
+    </script>
+  </body>
+</html>
