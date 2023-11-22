@@ -237,14 +237,6 @@
           centerZ: 1
         }
       });
-      //缩放时调整大小
-      window.onresize = () => {
-        cakeChart.onResize();
-      };
-      //离开时情况资源
-      window.onunload = () => {
-        cakeChart.cleanAll();
-      };
     </script>
   </body>
 </html>
