@@ -5,15 +5,27 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Document</title>
     <style>
+      body {
+        padding: 0;
+        margin: 0;
+      }
+      #btn {
+        position: absolute;
+        z-index: 2;
+        top: 0px;
+        left: 0px;
+      }
       #map {
-        height: 800px;
-        width: 800px;
+        position: absolute;
+        height: 100%;
+        width: 100%;
         background-color: black;
       }
     </style>
   </head>
   <body>
     <div id="nav"></div>
+    <button id="btn">截图</button>
     <div id="map"></div>
     <script type="module">
       import * as THREE from './node_modules/three/build/three.module.js';
@@ -544,6 +556,7 @@
 
         async createChart(that) {
           this.that = that;
+          this.scene.background = new THREE.Color(0x000000);
           let startTime = new Date().getTime();
 
           //限制控制器角度
@@ -611,6 +624,9 @@
       var map = new RegionMap();
       map.initThree(document.getElementById('map'));
       map.createChart(mapOption);
+      document.getElementById('btn').onclick = () => {
+        map.saveImage();
+      };
 
       window.map = map;
     </script>

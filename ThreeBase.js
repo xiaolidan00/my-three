@@ -63,6 +63,7 @@ export default class ThreeBase {
     this.renderer = new THREE.WebGLRenderer({
       antialias: true,
       alpha: true,
+      preserveDrawingBuffer: true,
       logarithmicDepthBuffer: this.isDepthBuffer || false
     });
     this.renderer.setClearColor(0x000000, 0);
@@ -106,6 +107,28 @@ export default class ThreeBase {
     window.addEventListener('unload', this.cleanAll.bind(this));
 
     this.animateRender();
+  }
+  saveImage() {
+    let image = this.renderer.domElement.toDataURL('image/png');
+
+    let parts = image.split(';base64,');
+    let contentType = parts[0].split(':')[1];
+    let raw = window.atob(parts[1]);
+    let rawLength = raw.length;
+    let uInt8Array = new Uint8Array(rawLength);
+    for (let i = 0; i < rawLength; i++) {
+      uInt8Array[i] = raw.charCodeAt(i);
+    }
+    const fileName = new Date().getTime() + '.png';
+    const file = new File([uInt8Array], fileName, { type: contentType });
+    const link = document.createElement('a');
+    link.href = window.URL.createObjectURL(file);
+    link.download = fileName;
+    link.target = '_blank';
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
+    // window.URL.revokeObjectURL(link.href);
   }
   animateRender() {
     if (this.isStats && this.stats) {
