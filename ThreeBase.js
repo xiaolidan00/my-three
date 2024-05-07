@@ -129,6 +129,7 @@ export default class ThreeBase {
     document.body.appendChild(link);
     link.click();
     window.URL.revokeObjectURL(link.href);
+    document.body.removeChild(link);
   }
   animateRender() {
     if (this.isStats && this.stats) {
